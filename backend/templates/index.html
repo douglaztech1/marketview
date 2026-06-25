@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarketView | Dashboard Imobiliário</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+
+    <main class="app">
+
+        <header class="hero">
+            <div>
+                <span class="badge">Inteligência Imobiliária</span>
+                <h1>Market<span>View</span></h1>
+                <p>Plataforma Inteligente para Análise de Preços do Mercado Imobiliário.</p>
+            </div>
+
+            <div class="hero-info">
+                <p>Projeto Integrador II</p>
+                <strong>Python • Flask • PostgreSQL</strong>
+            </div>
+        </header>
+
+        <section class="panel filtros-panel">
+            <div class="panel-title">
+                <div>
+                    <h2>Filtros de pesquisa</h2>
+                    <p>Selecione uma cidade, bairro e operação para analisar os dados.</p>
+                </div>
+            </div>
+
+            <div class="filtros">
+
+                <div class="campo">
+                    <label>Cidade</label>
+                    <select id="cidade">
+                        {% for cidade in cidades %}
+                            <option value="{{ cidade[0] }}">{{ cidade[1] }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="campo">
+                    <label>Bairro</label>
+                    <select id="bairro"></select>
+                </div>
+
+                <div class="campo">
+                    <label>Operação</label>
+                    <select id="operacao">
+                        <option value="Venda">Venda</option>
+                        <option value="Locação">Locação</option>
+                    </select>
+                </div>
+
+                <button id="btnConsultar">Consultar</button>
+
+            </div>
+        </section>
+
+        <section class="cards">
+
+            <div class="card accent-blue">
+                <span class="card-label">Preço Médio</span>
+                <strong id="precoMedio">R$ 0,00</strong>
+                <p>Média dos imóveis filtrados</p>
+            </div>
+
+            <div class="card accent-purple">
+                <span class="card-label">Preço Médio m²</span>
+                <strong id="precoM2">R$ 0,00</strong>
+                <p>Valor médio por metro quadrado</p>
+            </div>
+
+            <div class="card accent-green">
+                <span class="card-label">Quantidade</span>
+                <strong id="quantidade">0</strong>
+                <p>Imóveis encontrados</p>
+            </div>
+
+        </section>
+
+        <section class="graficos">
+
+            <div class="panel chart-card">
+                <div class="chart-title">
+                    <div>
+                        <h2>Distribuição de valores</h2>
+                        <p>Quantidade de imóveis por faixa de preço.</p>
+                    </div>
+                </div>
+
+                <canvas id="graficoDistribuicao"></canvas>
+            </div>
+
+            <div class="panel chart-card">
+                <div class="chart-title">
+                    <div>
+                        <h2>Tendência de preço médio</h2>
+                        <p>Evolução média dos anúncios no período.</p>
+                    </div>
+                </div>
+
+                <canvas id="graficoTendencia"></canvas>
+            </div>
+
+        </section>
+
+        <section class="panel tabela-section">
+            <div class="table-header">
+                <div>
+                    <h2>Imóveis encontrados</h2>
+                    <p>Registros retornados de acordo com os filtros selecionados.</p>
+                </div>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Operação</th>
+                            <th>Valor</th>
+                            <th>Área m²</th>
+                            <th>Data do anúncio</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="tabelaImoveis">
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <footer>
+            <p>© 2025 MarketView — Projeto acadêmico desenvolvido com Python, Flask e PostgreSQL.</p>
+        </footer>
+
+    </main>
+
+    <script>
+        const selectCidade = document.getElementById("cidade");
+        const selectBairro = document.getElementById("bairro");
+        const selectOperacao = document.getElementById("operacao");
+        const btnConsultar = document.getElementById("btnConsultar");
+
+        const precoMedio = document.getElementById("precoMedio");
+        const precoM2 = document.getElementById("precoM2");
+        const quantidade = document.getElementById("quantidade");
+
+        let graficoDistribuicao = null;
+        let graficoTendencia = null;
+
+        function formatarMoeda(valor) {
+            return valor.toLocaleString("pt-BR", {
+                style: "currency",
+                currency: "BRL"
+            });
+        }
+
+        function carregarBairros() {
+            const idCidade = selectCidade.value;
+
+            fetch(`/bairros/${idCidade}`)
+                .then(response => response.json())
+                .then(bairros => {
+                    selectBairro.innerHTML = "";
+
+                    bairros.forEach(bairro => {
+                        const option = document.createElement("option");
+                        option.value = bairro.id_bairro;
+                        option.textContent = bairro.nome;
+                        selectBairro.appendChild(option);
+                    });
+                });
+        }
+
+        function atualizarGraficoDistribuicao(distribuicao) {
+            const labels = distribuicao.map(item => item.faixa);
+            const valores = distribuicao.map(item => item.quantidade);
+
+            const ctx = document.getElementById("graficoDistribuicao");
+
+            if (graficoDistribuicao !== null) {
+                graficoDistribuicao.destroy();
+            }
+
+            graficoDistribuicao = new Chart(ctx, {
+                type: "bar",
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: "Quantidade de imóveis",
+                        data: valores,
+                        backgroundColor: "rgba(59, 130, 246, 0.75)",
+                        borderColor: "rgba(96, 165, 250, 1)",
+                        borderWidth: 1,
+                        borderRadius: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: "#CBD5E1"
+                            }
+                        },
+                        title: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                color: "#94A3B8"
+                            },
+                            grid: {
+                                color: "rgba(148, 163, 184, 0.08)"
+                            }
+                        },
+                        y: {
+                            ticks: {
+                                color: "#94A3B8"
+                            },
+                            grid: {
+                                color: "rgba(148, 163, 184, 0.10)"
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function atualizarGraficoTendencia(tendencia) {
+            const labels = tendencia.map(item => item.mes);
+            const valores = tendencia.map(item => item.preco_medio);
+
+            const ctx = document.getElementById("graficoTendencia");
+
+            if (graficoTendencia !== null) {
+                graficoTendencia.destroy();
+            }
+
+            graficoTendencia = new Chart(ctx, {
+                type: "line",
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: "Preço médio",
+                        data: valores,
+                        tension: 0.35,
+                        fill: true,
+                        backgroundColor: "rgba(124, 58, 237, 0.15)",
+                        borderColor: "rgba(139, 92, 246, 1)",
+                        pointBackgroundColor: "rgba(139, 92, 246, 1)",
+                        pointBorderColor: "#FFFFFF",
+                        pointRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: "#CBD5E1"
+                            }
+                        },
+                        title: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                color: "#94A3B8"
+                            },
+                            grid: {
+                                color: "rgba(148, 163, 184, 0.08)"
+                            }
+                        },
+                        y: {
+                            ticks: {
+                                color: "#94A3B8"
+                            },
+                            grid: {
+                                color: "rgba(148, 163, 184, 0.10)"
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function atualizarTabela(imoveis) {
+            const tabela = document.getElementById("tabelaImoveis");
+
+            tabela.innerHTML = "";
+
+            imoveis.forEach(imovel => {
+                const linha = document.createElement("tr");
+
+                linha.innerHTML = `
+                    <td>${imovel.id_imovel}</td>
+                    <td><span class="pill">${imovel.operacao}</span></td>
+                    <td>${formatarMoeda(imovel.valor)}</td>
+                    <td>${imovel.area_m2}</td>
+                    <td>${imovel.data_anuncio}</td>
+                `;
+
+                tabela.appendChild(linha);
+            });
+        }
+
+        function consultarDados() {
+            const cidade = selectCidade.options[selectCidade.selectedIndex].text;
+            const idBairro = selectBairro.value;
+            const bairro = selectBairro.options[selectBairro.selectedIndex].text;
+            const operacao = selectOperacao.value;
+
+            fetch("/consultar", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    cidade: cidade,
+                    id_bairro: idBairro,
+                    bairro: bairro,
+                    operacao: operacao
+                })
+            })
+            .then(response => response.json())
+            .then(dados => {
+                quantidade.textContent = dados.quantidade;
+                precoMedio.textContent = formatarMoeda(dados.preco_medio);
+                precoM2.textContent = formatarMoeda(dados.preco_medio_m2);
+
+                atualizarGraficoDistribuicao(dados.distribuicao);
+                atualizarGraficoTendencia(dados.tendencia);
+                atualizarTabela(dados.imoveis);
+            });
+        }
+
+        selectCidade.addEventListener("change", carregarBairros);
+        btnConsultar.addEventListener("click", consultarDados);
+
+        carregarBairros();
+    </script>
