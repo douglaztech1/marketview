@@ -1,7 +1,6 @@
 import os
 import psycopg2
 
-
 def conectar():
     try:
         conexao = psycopg2.connect(
@@ -15,5 +14,6 @@ def conectar():
         return conexao
 
     except Exception as erro:
+        print("Erro ao conectar:")
         print(erro)
         return None
