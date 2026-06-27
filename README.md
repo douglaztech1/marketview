@@ -2,11 +2,11 @@ MarketView
 
 Dashboard web para análise do mercado imobiliário, desenvolvido como projeto acadêmico utilizando Python, Flask e PostgreSQL.
 
-* Objetivo
+* Objetivo:
 
 O MarketView foi desenvolvido com o objetivo de permitir a análise de indicadores do mercado imobiliário por meio de uma interface intuitiva e moderna. A aplicação possibilita a consulta de imóveis por cidade, bairro e tipo de operação, apresentando informações estatísticas e gráficas para apoiar a tomada de decisão.
 
-* Funcionalidades
+* Funcionalidades:
 
 - Consulta de imóveis por cidade, bairro e operação.
 - Filtro dinâmico de bairros conforme a cidade selecionada.
@@ -18,7 +18,7 @@ O MarketView foi desenvolvido com o objetivo de permitir a análise de indicador
 - Tabela dinâmica com os imóveis filtrados.
 - Interface responsiva com tema escuro.
 
-* Tecnologias Utilizadas
+* Tecnologias Utilizadas:
 
 ## Backend
 - Python 3
@@ -40,7 +40,7 @@ O MarketView foi desenvolvido com o objetivo de permitir a análise de indicador
 - GitHub
 - Render
 
-* Estrutura do Projeto
+* Estrutura do Projeto:
 
 backend/
 │
